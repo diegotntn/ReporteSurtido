@@ -8,8 +8,8 @@ RESPONSABILIDAD:
 
 NO HACE:
 - Validaciones de negocio (eso es dominio)
-- Acceso directo a Mongo (eso es DB / queries)
-- Transformaciones de datos complejas (eso es queries / mappers)
+- Acceso directo a Mongo (eso es DB / repos)
+- Transformaciones complejas (eso es mappers / queries)
 """
 
 # ───────────────────────── COMMANDS (ESCRITURA) ─────────────────────────
@@ -35,14 +35,25 @@ class DevolucionesService:
     - NO conoce pandas
     """
 
-    def __init__(self, db, reportes_queries):
+    def __init__(
+        self,
+        *,
+        devoluciones_repo,
+        productos_repo,
+        personal_repo,
+        vendedores_repo,
+    ):
         """
         Parámetros:
-        - db: BaseDB (Mongo / SQLite)
-        - reportes_queries: ReportesQueries (lecturas especializadas con aggregations)
+        - devoluciones_repo: acceso a devoluciones
+        - productos_repo: acceso a productos
+        - personal_repo: acceso a personal
+        - vendedores_repo: acceso a vendedores
         """
-        self.db = db
-        self.reportes_queries = reportes_queries
+        self.devoluciones_repo = devoluciones_repo
+        self.productos_repo = productos_repo
+        self.personal_repo = personal_repo
+        self.vendedores_repo = vendedores_repo
 
     # ───────────────────────── REGISTRO ─────────────────────────
     def registrar(
@@ -64,7 +75,10 @@ class DevolucionesService:
         UI → Facade → Command → Dominio → Persistencia
         """
         return crear_devolucion(
-            db=self.db,
+            devoluciones_repo=self.devoluciones_repo,
+            productos_repo=self.productos_repo,
+            personal_repo=self.personal_repo,
+            vendedores_repo=self.vendedores_repo,
             fecha=fecha,
             folio=folio,
             cliente=cliente,
@@ -82,25 +96,28 @@ class DevolucionesService:
         para la tabla principal.
         """
         return listar_historial(
-            db=self.db,
+            devoluciones_repo=self.devoluciones_repo,
             desde=desde,
             hasta=hasta,
             **filtros,
         )
 
+    # ───────────────────────── ARTÍCULOS ─────────────────────────
     def obtener_articulos(self, devolucion_id: str):
         """
-        Devuelve los artículos de una devolución como DataFrame.
+        Devuelve los artículos de una devolución.
 
         NOTA:
-        - La UI NUNCA debe llamar a queries directamente
-        - Este método garantiza un DataFrame válido (nunca None)
+        - Retorna estructuras simples (list / dict)
+        - La UI NO maneja DataFrames
         """
         return obtener_articulos(
-            self.reportes_queries,  # llamada POSICIONAL (correcta)
-            devolucion_id,
+            devoluciones_repo=self.devoluciones_repo,
+            productos_repo=self.productos_repo,
+            devolucion_id=devolucion_id,
         )
 
+    # ───────────────────────── COMPLETA ─────────────────────────
     def obtener_completa(self, devolucion_id: str):
         """
         Devuelve la devolución completa para edición.
@@ -111,12 +128,12 @@ class DevolucionesService:
             "folio": ...,
             "cliente": ...,
             ...
-            "items": [...],
-            "articulos_df": pandas.DataFrame
+            "items": [...]
         }
         """
         return obtener_completa(
-            db=self.db,
+            devoluciones_repo=self.devoluciones_repo,
+            productos_repo=self.productos_repo,
             devolucion_id=devolucion_id,
         )
 
@@ -124,17 +141,12 @@ class DevolucionesService:
     def actualizar(self, *, devolucion_id: str, **data):
         """
         Actualiza una devolución existente.
-
-        Puede recibir:
-        - Datos de encabezado (fecha, folio, cliente, etc.)
-        - items: lista de artículos actualizados
-
-        La fachada NO interpreta los datos.
         """
         return actualizar_devolucion(
-            db=self.db,
+            devoluciones_repo=self.devoluciones_repo,
+            productos_repo=self.productos_repo,
             devolucion_id=devolucion_id,
-            **data,   # ← aquí ya es válido que venga `items`
+            **data,
         )
 
     # ───────────────────────── ESTATUS ─────────────────────────
@@ -144,7 +156,7 @@ class DevolucionesService:
         (pendiente, cerrada, cancelada, etc.).
         """
         return cambiar_estatus(
-            db=self.db,
+            devoluciones_repo=self.devoluciones_repo,
             devolucion_id=devolucion_id,
             nuevo_estatus=nuevo_estatus,
         )
@@ -155,6 +167,6 @@ class DevolucionesService:
         Elimina una devolución.
         """
         return eliminar_devolucion(
-            db=self.db,
+            devoluciones_repo=self.devoluciones_repo,
             devolucion_id=devolucion_id,
         )

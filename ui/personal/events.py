@@ -4,11 +4,16 @@ from datetime import date
 
 class PersonalEvents:
     """
-    Callbacks de personal y asignaciones.
+    Callbacks de PERSONAL y ASIGNACIONES.
+
+    - Personal → PersonalService
+    - Asignaciones → AsignacionesService
     """
 
-    def __init__(self, service):
-        self.service = service
+    def __init__(self, personal_service, asignaciones_service):
+        self.personal_service = personal_service
+        self.asignaciones_service = asignaciones_service
+
         self.persona_id_sel = None
         self.asignacion_id = None
 
@@ -38,18 +43,22 @@ class PersonalEvents:
         self._refresh_personal()
         self._refresh_asignaciones()
 
-    # ───────── PERSONAS ─────────
+    # ─────────────────────────
+    # PERSONAS
+    # ─────────────────────────
     def _refresh_personal(self):
         self.tables.tbl_personal.delete(
             *self.tables.tbl_personal.get_children()
         )
 
-        df = self.service.listar_personal_operativo()
+        df = self.personal_service.listar_personal_operativo()
         nombres = []
 
         for _, p in df.iterrows():
             self.tables.tbl_personal.insert(
-                "", "end", values=(p["id"], p["nombre"])
+                "",
+                "end",
+                values=(p["id"], p["nombre"])
             )
             nombres.append(p["nombre"])
 
@@ -61,7 +70,7 @@ class PersonalEvents:
             return
 
         try:
-            self.service.crear_persona(nombre)
+            self.personal_service.crear_persona(nombre)
         except Exception as e:
             messagebox.showerror("Error", str(e))
             return
@@ -82,28 +91,28 @@ class PersonalEvents:
         self.persona_id_sel = pid
         self.form.var_nombre.set(nombre)
 
-    # ───────── ASIGNACIONES ─────────
+    # ─────────────────────────
+    # ASIGNACIONES
+    # ─────────────────────────
     def _refresh_asignaciones(self):
         self.tables.tbl_asig.delete(
             *self.tables.tbl_asig.get_children()
         )
 
-        for r in self.service.listar_asignaciones():
+        for r in self.asignaciones_service.listar_asignaciones():
             self.tables.tbl_asig.insert(
                 "",
                 "end",
-                iid=r["id"],  # id oculto, correcto
+                iid=r["id"],
                 values=(
-                    r["pasillo"],   # ← PASILLO
-                    r["persona"],   # ← PERSONA
-                    r["desde"],     # ← DESDE
-                    r["hasta"],     # ← HASTA
+                    r["pasillo"],
+                    r["persona"],
+                    r["desde"],
+                    r["hasta"],
                 )
             )
 
-
     def _guardar_asignacion(self):
-
         pasillo = self.form.var_pasillo.get()
         persona = self.form.var_persona.get()
 
@@ -116,16 +125,10 @@ class PersonalEvents:
 
         desde = self.form.dt_desde.get_date().isoformat()
         hasta = self.form.dt_hasta.get_date().isoformat()
-        
-        print("GUARDANDO ASIGNACIÓN:")
-        print("Pasillo:", pasillo)
-        print("Persona:", persona)
-        print("Desde:", desde)
-        print("Hasta:", hasta)
 
         try:
             if self.asignacion_id:
-                self.service.actualizar_asignacion(
+                self.asignaciones_service.actualizar_asignacion(
                     self.asignacion_id,
                     pasillo,
                     persona,
@@ -133,8 +136,7 @@ class PersonalEvents:
                     hasta
                 )
             else:
-                # ✅ AQUÍ SE INSERTA LA ASIGNACIÓN
-                self.service.crear_asignacion(
+                self.asignaciones_service.crear_asignacion(
                     pasillo,
                     persona,
                     desde,
@@ -152,13 +154,15 @@ class PersonalEvents:
         if not sel:
             return
 
-        r = self.tables.tbl_asig.item(sel[0], "values")
-        self.asignacion_id = r[0]
+        asignacion_id = sel[0]
+        r = self.tables.tbl_asig.item(asignacion_id, "values")
 
-        self.form.var_pasillo.set(r[1])
-        self.form.var_persona.set(r[2])
-        self.form.dt_desde.set_date(r[3])
-        self.form.dt_hasta.set_date(r[4] or date.today())
+        self.asignacion_id = asignacion_id
+
+        self.form.var_pasillo.set(r[0])
+        self.form.var_persona.set(r[1])
+        self.form.dt_desde.set_date(r[2])
+        self.form.dt_hasta.set_date(r[3] or date.today())
 
         self.form.btn_save_asig.config(
             text="Actualizar asignación"

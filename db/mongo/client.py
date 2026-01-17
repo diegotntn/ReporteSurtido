@@ -278,3 +278,49 @@ class MongoClientProvider:
         Cierra la conexión MongoDB.
         """
         self._client.close()
+
+# ─────────────────────────────
+# 🔹 ANALYTICS DEVOLUCIONES
+# ────────────────────────────
+
+    def aggregate_kpis_devoluciones(self, *, collection: str):
+        """
+        KPIs:
+        - total devoluciones
+        - total piezas (sum items.cantidad)
+        - importe total
+        """
+        pipeline = [
+            {
+                "$unwind": {
+                    "path": "$items",
+                    "preserveNullAndEmptyArrays": True
+                }
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "ids": {"$addToSet": "$_id"},
+                    "piezas": {
+                        "$sum": {"$ifNull": ["$items.cantidad", 0]}
+                    },
+                    "importe": {
+                        "$sum": {"$ifNull": ["$total", 0]}
+                    }
+                }
+            },
+            {
+                "$project": {
+                    "_id": 0,
+                    "total": {"$size": "$ids"},
+                    "piezas": 1,
+                    "importe": 1
+                }
+            }
+        ]
+
+        res = list(self._db[collection].aggregate(pipeline))
+        if not res:
+            return {"total": 0, "piezas": 0, "importe": 0}
+
+        return res[0]

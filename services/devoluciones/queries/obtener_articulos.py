@@ -3,66 +3,72 @@ Query: obtener artículos de una devolución.
 
 RESPONSABILIDAD:
 - Obtener artículos para el panel derecho del historial
-- Normalizar el contrato de columnas para la UI
+- Normalizar el contrato de datos para la UI
 
 NO HACE:
 - Validaciones de negocio
 - Acceso directo a Mongo
+- Uso de pandas
 """
 
-import pandas as pd
-
-# Contrato de columnas que la UI espera
-_UI_COLUMNS = ["id", "nombre", "codigo", "pasillo", "cantidad", "unitario"]
+# Contrato de claves que la UI espera
+_UI_KEYS = ["id", "nombre", "codigo", "pasillo", "cantidad", "unitario"]
 
 
-def obtener_articulos(reportes_queries, devolucion_id: str) -> pd.DataFrame:
+def obtener_articulos(*, devoluciones_repo, productos_repo, devolucion_id: str):
     """
-    Devuelve los artículos de una devolución como DataFrame.
+    Devuelve los artículos de una devolución como lista de dicts.
 
     Parámetros:
-    - reportes_queries: instancia de ReportesQueries
+    - devoluciones_repo: repositorio de devoluciones
+    - productos_repo: repositorio de productos
     - devolucion_id: id de la devolución
 
     Garantías:
     - Nunca devuelve None
-    - Siempre incluye la columna 'id'
+    - Siempre devuelve una lista
+    - Cada elemento cumple el contrato UI
     """
 
     # ─────────────────────────────────────────────
     # Validación mínima de entrada
     # ─────────────────────────────────────────────
     if not devolucion_id:
-        return pd.DataFrame(columns=_UI_COLUMNS)
+        return []
 
     # ─────────────────────────────────────────────
-    # Lectura especializada (Mongo aggregation)
+    # Lectura base (repositorio)
     # ─────────────────────────────────────────────
-    df = reportes_queries.devolucion_articulos(devolucion_id)
+    devolucion = devoluciones_repo.obtener_por_id(devolucion_id)
+    if not devolucion:
+        return []
 
-    if df is None or df.empty:
-        return pd.DataFrame(columns=_UI_COLUMNS)
-
-    # ─────────────────────────────────────────────
-    # Normalización de ID (contrato UI)
-    # ─────────────────────────────────────────────
-    if "id" not in df.columns:
-        if "_id" in df.columns:
-            df = df.rename(columns={"_id": "id"})
-        elif "producto_id" in df.columns:
-            df = df.rename(columns={"producto_id": "id"})
-        else:
-            # Generar id sintético para no romper la UI
-            df = df.copy()
-            df["id"] = df.index.astype(str)
+    items = devolucion.get("items", [])
+    if not items:
+        return []
 
     # ─────────────────────────────────────────────
-    # Garantizar columnas mínimas (orden y presencia)
+    # Normalización para UI
     # ─────────────────────────────────────────────
-    for col in _UI_COLUMNS:
-        if col not in df.columns:
-            df[col] = None
+    articulos_ui = []
 
-    df = df[_UI_COLUMNS]
+    for item in items:
+        producto_id = item.get("producto_id")
+        producto = productos_repo.obtener_por_id(producto_id) if producto_id else {}
 
-    return df
+        row = {
+            "id": producto_id or item.get("id"),
+            "nombre": producto.get("nombre"),
+            "codigo": producto.get("codigo"),
+            "pasillo": producto.get("pasillo"),
+            "cantidad": item.get("cantidad"),
+            "unitario": item.get("unitario"),
+        }
+
+        # Garantizar contrato UI
+        for key in _UI_KEYS:
+            row.setdefault(key, None)
+
+        articulos_ui.append(row)
+
+    return articulos_ui

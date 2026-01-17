@@ -7,13 +7,19 @@ from .events import PersonalEvents
 
 class PersonalScreen(ttk.Frame):
     """
-    Contenedor principal de gestión de personal operativo y asignaciones.
+    Contenedor principal de gestión de PERSONAL y ASIGNACIONES.
     """
 
-    def __init__(self, parent, personal_service):
+    def __init__(self, parent, personal_service, asignaciones_service):
         super().__init__(parent)
 
-        self.events = PersonalEvents(personal_service)
+        self.personal_service = personal_service
+        self.asignaciones_service = asignaciones_service
+
+        self.events = PersonalEvents(
+            personal_service=self.personal_service,
+            asignaciones_service=self.asignaciones_service
+        )
 
     def build(self):
         cont = ttk.Frame(self, padding=12)

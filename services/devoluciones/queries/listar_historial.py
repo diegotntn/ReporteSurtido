@@ -2,18 +2,21 @@
 Query: listar historial de devoluciones.
 
 RESPONSABILIDAD:
-- Construir filtro Mongo válido
-- Normalizar fechas a datetime
-- Delegar ejecución a DB
-- Retornar DataFrame listo para UI
+- Construir filtros simples
+- Delegar la lectura al repositorio
+- Normalizar datos para la UI
+
+NO HACE:
+- Acceso directo a Mongo
+- Uso de pandas
+- Lógica de negocio
 """
 
-import pandas as pd
 from datetime import datetime, date
 
 
 # ─────────────────────────────────────────────
-# Helpers locales (solo para este query)
+# Helpers locales
 # ─────────────────────────────────────────────
 
 def _dt_inicio(value):
@@ -38,32 +41,61 @@ def _dt_fin(value):
 # Query principal
 # ─────────────────────────────────────────────
 
-def listar_historial(db, *, desde=None, hasta=None, **otros_filtros) -> pd.DataFrame:
+def listar_historial(
+    *,
+    devoluciones_repo,
+    desde=None,
+    hasta=None,
+    **otros_filtros,
+):
     """
-    Devuelve el historial de devoluciones como DataFrame.
+    Devuelve el historial de devoluciones como lista de dicts.
+
+    Garantías:
+    - Siempre devuelve una lista
+    - Nunca devuelve None
     """
 
-    # ───── Filtro Mongo único ─────
-    filtro = {}
+    # ─────────────────────────────────────────────
+    # Construcción de filtros
+    # ─────────────────────────────────────────────
+    filtros = {}
 
     # Filtro por fecha
     if desde or hasta:
-        filtro["fecha"] = {}
+        filtros["fecha"] = {}
 
         if desde:
-            filtro["fecha"]["$gte"] = _dt_inicio(desde)
+            filtros["fecha"]["$gte"] = _dt_inicio(desde)
         if hasta:
-            filtro["fecha"]["$lte"] = _dt_fin(hasta)
+            filtros["fecha"]["$lte"] = _dt_fin(hasta)
 
     # Otros filtros simples (zona, estatus, vendedor_id, etc.)
     for k, v in otros_filtros.items():
         if v is not None:
-            filtro[k] = v
+            filtros[k] = v
 
-    # ───── Ejecución DB ─────
-    data = db.get_devoluciones(filtro=filtro)
+    # ─────────────────────────────────────────────
+    # Lectura vía repositorio
+    # ─────────────────────────────────────────────
+    devoluciones = devoluciones_repo.listar(filtros=filtros)
 
-    if not data:
-        return pd.DataFrame()
+    if not devoluciones:
+        return []
 
-    return pd.DataFrame(data)
+    # ─────────────────────────────────────────────
+    # Normalización mínima para UI
+    # ─────────────────────────────────────────────
+    historial_ui = []
+
+    for d in devoluciones:
+        historial_ui.append({
+            "id": d.get("id") or d.get("_id"),
+            "fecha": d.get("fecha"),
+            "folio": d.get("folio"),
+            "cliente": d.get("cliente"),
+            "zona": d.get("zona"),
+            "estatus": d.get("estatus"),
+        })
+
+    return historial_ui

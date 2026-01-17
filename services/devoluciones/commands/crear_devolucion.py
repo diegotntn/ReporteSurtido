@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime, date
 
-from domain.devoluciones import Devolucion
 from services.devoluciones.mappers.devolucion_mapper import (
     devolucion_from_ui,
     devolucion_to_persistence,
@@ -17,10 +16,12 @@ def _normalizar_fecha(fecha):
         return datetime.combine(fecha, datetime.min.time())
     return fecha
 
-
 def crear_devolucion(
     *,
-    db,
+    devoluciones_repo,
+    productos_repo,
+    personal_repo,
+    vendedores_repo,
     fecha,
     folio,
     cliente,
@@ -30,13 +31,17 @@ def crear_devolucion(
     items,
     vendedor_id=None,
 ):
-    # 1️⃣ Generar ID de negocio
+    """
+    COMMAND: Crear devolución
+    """
+
+    # 1️⃣ ID
     devolucion_id = str(uuid.uuid4())
 
-    # 2️⃣ Normalizar fecha (ANTES de persistir)
+    # 2️⃣ Fecha
     fecha = _normalizar_fecha(fecha)
 
-    # 3️⃣ Construir dominio desde datos de UI
+    # 3️⃣ Dominio
     devol = devolucion_from_ui(
         devolucion_id=devolucion_id,
         folio=folio,
@@ -45,21 +50,28 @@ def crear_devolucion(
         motivo=motivo,
         zona=zona,
         vendedor_id=vendedor_id,
-        articulos=items,
+        articulos=items,  # ← viene directo de UI
     )
 
-    # 4️⃣ Validar reglas de negocio (dominio)
+    # 4️⃣ Validar
     devol.validar()
 
-    # 5️⃣ Mapear dominio → estructura persistible
+    # 5️⃣ Mapper (solo para datos simples)
     data = devolucion_to_persistence(devol)
 
-    # 6️⃣ Persistir en DB
-    db.insertar_devolucion(
+    # 6️⃣ Persistir (USANDO items DIRECTO)
+    devoluciones_repo.insertar(
         devolucion_id=devol.id,
         fecha=fecha,
-        **data
+        folio=data["folio"],
+        cliente=data["cliente"],
+        direccion=data["direccion"],
+        motivo=data["motivo"],
+        zona=data["zona"],
+        total=data["total"],
+        items=items,  # ← CLAVE: NO usar data["items"]
+        vendedor_id=data.get("vendedor_id"),
+        estatus=data.get("estatus", "pendiente"),
     )
 
-    # 7️⃣ Retornar ID generado
     return devol.id

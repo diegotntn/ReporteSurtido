@@ -62,17 +62,20 @@ class HistorialEvents:
             messagebox.showwarning("Fechas inválidas", str(e))
             return
 
-        df = self.service.listar(
+        # 🔁 AHORA devuelve list[dict]
+        data = self.service.listar(
             desde=desde,
             hasta=hasta
         )
 
         self.tables.clear()
 
-        if df is None or df.empty:
+        # Validación segura para listas
+        if not data:
             return
 
-        for _, row in df.iterrows():
+        # Render filas
+        for row in data:
             self.tables.insert_devolucion(row)
 
     # ─────────────────────────────────────────────

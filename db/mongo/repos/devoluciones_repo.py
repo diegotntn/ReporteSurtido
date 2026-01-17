@@ -1,21 +1,27 @@
 from datetime import datetime
-import pandas as pd
 
 
 class DevolucionesRepo:
+    """
+    Repositorio de devoluciones.
+
+    RESPONSABILIDAD:
+    - Acceso directo a la colección Mongo
+    - Persistencia y lectura de documentos
+    - NO transforma para UI
+    - NO usa pandas
+    """
+
     def __init__(self, db):
         self.col = db.devoluciones
 
     # ───────────── Helpers ─────────────
     @staticmethod
     def _to_dt(value):
+        """Convierte str | date | datetime a datetime."""
         if isinstance(value, datetime):
             return value
         return datetime.fromisoformat(str(value))
-
-    @staticmethod
-    def _df(docs):
-        return pd.DataFrame(docs) if docs else pd.DataFrame()
 
     # ───────────── CRUD ─────────────
     def insertar(
@@ -29,7 +35,7 @@ class DevolucionesRepo:
         motivo: str,
         zona: str,
         total: float,
-        articulos: list[dict],
+        items: list[dict],
         vendedor_id=None,
         estatus="pendiente",
     ):
@@ -42,7 +48,7 @@ class DevolucionesRepo:
             "motivo": motivo,
             "zona": zona,
             "total": float(total),
-            "articulos": articulos or [],
+            "items": items or [],
             "vendedor_id": vendedor_id,
             "estatus": estatus,
             "created_at": datetime.utcnow(),
@@ -52,7 +58,10 @@ class DevolucionesRepo:
     def actualizar(self, devolucion_id: str, *, data: dict):
         if not data:
             return
-        self.col.update_one({"_id": devolucion_id}, {"$set": data})
+        self.col.update_one(
+            {"_id": devolucion_id},
+            {"$set": data}
+        )
 
     def eliminar(self, devolucion_id: str):
         self.col.delete_one({"_id": devolucion_id})
@@ -61,24 +70,50 @@ class DevolucionesRepo:
         self.col.delete_many({})
 
     # ───────────── Queries simples ─────────────
-    def listar(self, filtros: dict) -> pd.DataFrame:
-        docs = list(
-            self.col.find(filtros).sort([("fecha", -1), ("folio", -1)])
-        )
-        for d in docs:
-            d["id"] = d.pop("_id")
-            d["fecha"] = d["fecha"].date().isoformat()
-        return self._df(docs)
+    def listar(self, *, filtros=None):
+        """
+        Devuelve una lista de dicts ordenada por fecha y folio.
+        """
+        filtros = filtros or {}
 
-    def articulos(self, devolucion_id: str) -> pd.DataFrame:
+        docs = list(
+            self.col
+            .find(filtros)
+            .sort([("fecha", -1), ("folio", -1)])
+        )
+
+        resultado = []
+        for d in docs:
+            resultado.append({
+                "id": d.get("_id"),
+                "fecha": d.get("fecha"),
+                "folio": d.get("folio"),
+                "cliente": d.get("cliente"),
+                "zona": d.get("zona"),
+                "estatus": d.get("estatus"),
+            })
+
+        return resultado
+
+    def obtener_por_id(self, devolucion_id: str):
+        """
+        Devuelve una devolución completa como dict o None.
+        """
         d = self.col.find_one({"_id": devolucion_id})
         if not d:
-            return pd.DataFrame()
+            return None
 
-        rows = []
-        for i, a in enumerate(d.get("articulos", [])):
-            r = dict(a)
-            r["id"] = str(i)
-            rows.append(r)
+        d["id"] = d.pop("_id")
+        return d
 
-        return self._df(rows)
+    def obtener_items(self, devolucion_id: str):
+        """
+        Devuelve los items de una devolución como lista.
+        """
+        d = self.col.find_one(
+            {"_id": devolucion_id},
+            {"items": 1}
+        )
+        if not d:
+            return []
+        return d.get("items", [])
