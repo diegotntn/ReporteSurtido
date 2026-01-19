@@ -97,3 +97,16 @@ class ArticulosTable(ttk.LabelFrame):
         self._items.clear()
         for row in self.tree.get_children():
             self.tree.delete(row)
+
+    def remove_selected(self):
+        seleccion = self.tree.selection()
+        if not seleccion:
+            return False
+
+        item_id = seleccion[0]
+        index = self.tree.index(item_id)
+
+        del self._items[index]
+        self.tree.delete(item_id)
+
+        return True

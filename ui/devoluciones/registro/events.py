@@ -139,6 +139,21 @@ class RegistroEvents:
 
         except ValueError as e:
             messagebox.showwarning("Error", str(e))
+            
+    def on_eliminar_articulo(self):
+        eliminado = self.table.remove_selected()
+
+        if not eliminado:
+            messagebox.showwarning(
+                "Aviso",
+                "Selecciona un artículo de la tabla"
+            )
+            return
+
+        # Si ya no quedan artículos, desactivar Guardar
+        if not self.table.get_items() and self._btn_guardar:
+            self._btn_guardar.config(state="disabled")
+
 
     # ─────────────────────────────────────────
     # GUARDAR DEVOLUCIÓN

@@ -1,8 +1,7 @@
 from tkinter import ttk
 from utils.scrollframe import ScrollFrame
 
-from .form import RegistroForm
-from .form import ArticuloForm
+from .form import RegistroForm, ArticuloForm
 from .table import ArticulosTable
 from .events import RegistroEvents
 
@@ -10,12 +9,15 @@ from .events import RegistroEvents
 class RegistroScreen(ttk.Frame):
     """
     Contenedor principal del registro de devoluciones.
+    Arma la UI y conecta eventos.
     """
 
     def __init__(self, parent, devoluciones_service, productos_service, on_saved=None):
         super().__init__(parent)
 
-        # ───── Eventos / lógica ─────
+        # ─────────────────────────────
+        # Eventos / lógica
+        # ─────────────────────────────
         self.events = RegistroEvents(
             devoluciones_service=devoluciones_service,
             productos_service=productos_service,
@@ -31,7 +33,9 @@ class RegistroScreen(ttk.Frame):
             return
         self._built = True
 
+        # ─────────────────────────────
         # Scroll principal
+        # ─────────────────────────────
         sf = ScrollFrame(self)
         sf.pack(fill="both", expand=True)
 
@@ -61,6 +65,7 @@ class RegistroScreen(ttk.Frame):
         btns = ttk.Frame(frame)
         btns.pack(fill="x", padx=12, pady=(0, 12))
 
+        # Agregar artículo
         self.btn_agregar = ttk.Button(
             btns,
             text="Agregar artículo",
@@ -68,6 +73,15 @@ class RegistroScreen(ttk.Frame):
         )
         self.btn_agregar.pack(side="left")
 
+        # Eliminar artículo (SELECCIÓN EN TABLA)
+        self.btn_eliminar = ttk.Button(
+            btns,
+            text="Eliminar artículo",
+            command=self.events.on_eliminar_articulo
+        )
+        self.btn_eliminar.pack(side="left", padx=(8, 0))
+
+        # Guardar devolución
         self.btn_guardar = ttk.Button(
             btns,
             text="Guardar devolución",
