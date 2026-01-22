@@ -12,14 +12,13 @@ class RegistroScreen(ttk.Frame):
     Arma la UI y conecta eventos.
     """
 
-    def __init__(self, parent, devoluciones_service, productos_service, on_saved=None):
+    def __init__(self, parent, productos_service, on_saved=None):
         super().__init__(parent)
 
         # ─────────────────────────────
         # Eventos / lógica
         # ─────────────────────────────
         self.events = RegistroEvents(
-            devoluciones_service=devoluciones_service,
             productos_service=productos_service,
             on_saved=on_saved
         )
@@ -73,7 +72,7 @@ class RegistroScreen(ttk.Frame):
         )
         self.btn_agregar.pack(side="left")
 
-        # Eliminar artículo (SELECCIÓN EN TABLA)
+        # Eliminar artículo
         self.btn_eliminar = ttk.Button(
             btns,
             text="Eliminar artículo",

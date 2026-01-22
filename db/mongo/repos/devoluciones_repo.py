@@ -6,19 +6,27 @@ class DevolucionesRepo:
     Repositorio de devoluciones.
 
     RESPONSABILIDAD:
-    - Acceso directo a la colección Mongo
+    - Acceso directo a UNA colección Mongo (inyectada)
     - Persistencia y lectura de documentos
+    - NO decide qué colección usar
     - NO transforma para UI
     - NO usa pandas
     """
 
-    def __init__(self, db):
-        self.col = db.devoluciones
+    def __init__(self, db, collection_name: str):
+        """
+        Parámetros:
+        - db: instancia de base de datos Mongo
+        - collection_name: nombre de la colección a usar
+        """
+        self.col = db[collection_name]
 
     # ───────────── Helpers ─────────────
     @staticmethod
     def _to_dt(value):
-        """Convierte str | date | datetime a datetime."""
+        """
+        Convierte str | date | datetime a datetime.
+        """
         if isinstance(value, datetime):
             return value
         return datetime.fromisoformat(str(value))
@@ -39,6 +47,9 @@ class DevolucionesRepo:
         vendedor_id=None,
         estatus="pendiente",
     ):
+        """
+        Inserta una nueva devolución en la colección.
+        """
         doc = {
             "_id": devolucion_id,
             "fecha": self._to_dt(fecha),
@@ -56,23 +67,34 @@ class DevolucionesRepo:
         self.col.insert_one(doc)
 
     def actualizar(self, devolucion_id: str, *, data: dict):
+        """
+        Actualiza campos de una devolución existente.
+        """
         if not data:
             return
+
         self.col.update_one(
             {"_id": devolucion_id},
             {"$set": data}
         )
 
     def eliminar(self, devolucion_id: str):
+        """
+        Elimina una devolución por ID.
+        """
         self.col.delete_one({"_id": devolucion_id})
 
     def eliminar_todas(self):
+        """
+        Elimina TODAS las devoluciones de la colección actual.
+        """
         self.col.delete_many({})
 
     # ───────────── Queries simples ─────────────
     def listar(self, *, filtros=None):
         """
-        Devuelve una lista de dicts ordenada por fecha y folio.
+        Devuelve una lista de devoluciones resumidas,
+        ordenadas por fecha y folio.
         """
         filtros = filtros or {}
 
@@ -116,4 +138,5 @@ class DevolucionesRepo:
         )
         if not d:
             return []
+
         return d.get("items", [])

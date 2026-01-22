@@ -1,18 +1,30 @@
 from tkinter import messagebox
+
 from utils.helpers import pasillo_desde_linea, normalizar_texto_busqueda
+from db.factory import get_devoluciones_service
 
 
 class RegistroEvents:
     """
     Callbacks y lógica de interacción del registro de devoluciones.
-    Orquesta UI ↔ Services ↔ Dominio.
+
+    RESPONSABILIDAD:
+    - Orquestar UI ↔ Services ↔ Dominio
+    - NO conoce Mongo
+    - NO conoce colecciones
+    - NO decide infraestructura
     """
 
-    def __init__(self, devoluciones_service, productos_service, on_saved=None):
-        self.devoluciones_service = devoluciones_service
+    def __init__(self, productos_service, on_saved=None):
+        """
+        Parámetros:
+        - productos_service: servicio de productos (autocomplete)
+        - on_saved: callback post-guardado
+        """
         self.productos_service = productos_service
         self.on_saved = on_saved
 
+        # UI
         self.form = None
         self.form_articulo = None
         self.table = None
@@ -81,8 +93,9 @@ class RegistroEvents:
 
     def _focus_listbox(self, _event=None):
         if self._resultados:
-            self.form_articulo._listbox.focus_set()
-            self.form_articulo._listbox.selection_set(0)
+            lb = self.form_articulo._listbox
+            lb.focus_set()
+            lb.selection_set(0)
 
     def _on_listbox_click(self, _event=None):
         self._seleccionar_actual()
@@ -98,7 +111,6 @@ class RegistroEvents:
             return
 
         producto = self._resultados[sel[0]]
-
         pasillo = pasillo_desde_linea(producto.get("linea"))
 
         self.form_articulo.set_producto(
@@ -112,16 +124,16 @@ class RegistroEvents:
         self.form_articulo.ocultar_sugerencias()
 
     # ─────────────────────────────────────────
-    # AGREGAR ARTÍCULO
+    # AGREGAR / ELIMINAR ARTÍCULO
     # ─────────────────────────────────────────
     def on_agregar_articulo(self):
         try:
             data = self.form_articulo.get_data()
 
-            if not data["clave"]:
+            if not data.get("clave"):
                 raise ValueError("Selecciona un producto válido")
 
-            if not data["pasillo"]:
+            if not data.get("pasillo"):
                 raise ValueError("Debes seleccionar el pasillo")
 
             self.table.add_item(
@@ -139,7 +151,7 @@ class RegistroEvents:
 
         except ValueError as e:
             messagebox.showwarning("Error", str(e))
-            
+
     def on_eliminar_articulo(self):
         eliminado = self.table.remove_selected()
 
@@ -150,10 +162,8 @@ class RegistroEvents:
             )
             return
 
-        # Si ya no quedan artículos, desactivar Guardar
         if not self.table.get_items() and self._btn_guardar:
             self._btn_guardar.config(state="disabled")
-
 
     # ─────────────────────────────────────────
     # GUARDAR DEVOLUCIÓN
@@ -166,7 +176,16 @@ class RegistroEvents:
             if not items:
                 raise ValueError("No hay artículos agregados")
 
-            self.devoluciones_service.registrar(
+            motivo = data.get("motivo")
+            if not motivo:
+                raise ValueError("Debes seleccionar un motivo")
+
+            # 🔑 El service se resuelve AQUÍ, cuando ya existe el motivo
+            devoluciones_service = get_devoluciones_service(
+                motivo=motivo
+            )
+
+            devoluciones_service.registrar(
                 **data,
                 items=items
             )

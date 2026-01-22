@@ -27,7 +27,7 @@ ReporteSurtido/
 │       ├── client.py                          # Conexión MongoClient
 │       ├── collections.py                     # Nombres de colecciones
 │       ├── indexes.py                         # Índices
-│       │
+│       ├── resolver.py   
 │       └── repos/                             # CRUD por entidad
 │           ├── __init__.py
 │           ├── devoluciones_repo.py

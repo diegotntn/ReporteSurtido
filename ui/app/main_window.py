@@ -1,21 +1,18 @@
 import tkinter as tk
 
-# ───────── Base de datos (infraestructura) ─────────
-from db import get_db
+# ───────── DB / Factory ─────────
+from db.factory import (
+    get_db,
+    get_productos_service,
+    get_personal_repo,
+    get_vendedores_repo,
+    get_asignaciones_repo,
+)
 
-# ───────── Repositorios ─────────
-from db.mongo.repos.productos_repo import ProductosRepo
-from db.mongo.repos.personal_repo import PersonalRepo
-from db.mongo.repos.vendedores_repo import VendedoresRepo
-from db.mongo.repos.devoluciones_repo import DevolucionesRepo
-from db.mongo.repos.asignaciones_repo import AsignacionesRepo
-
-# ───────── Services (casos de uso) ─────────
-from services.productos_service import ProductosService
+# ───────── Services ─────────
 from services.personal_service import PersonalService
 from services.vendedores_service import VendedoresService
 from services.asignaciones_service import AsignacionesService
-from services.devoluciones.facade import DevolucionesService
 from services.devoluciones.analytics.service import DevolucionesAnalyticsService
 
 # ───────── UI Core ─────────
@@ -28,16 +25,15 @@ class MainWindow(tk.Tk):
     Ventana principal de la aplicación.
 
     RESPONSABILIDADES:
-    - Crear infraestructura (DB Provider)
-    - Crear repositorios
-    - Crear services correctamente inyectados
-    - Registrar servicios en un solo diccionario
+    - Inicializar infraestructura (DB)
+    - Construir services BASE (no dependientes de motivo)
+    - Registrar services en un solo diccionario
     - Inicializar UI y estado global
 
     REGLAS:
-    - MainWindow NO conoce reportes
-    - MainWindow NO maneja threads
-    - MainWindow NO hace lógica de negocio
+    - NO instancia repos directamente
+    - NO instancia DevolucionesService
+    - NO decide colecciones
     """
 
     def __init__(self):
@@ -50,33 +46,26 @@ class MainWindow(tk.Tk):
 
         # ───────────────── Infraestructura DB ─────────────────
         self.db_provider = get_db()
-        db = self.db_provider._db  # MongoDatabase
 
-        # ───────────────── Repositorios ─────────────────
-        self.productos_repo = ProductosRepo(db)
-        self.personal_repo = PersonalRepo(db)
-        self.vendedores_repo = VendedoresRepo(db)
-        self.devoluciones_repo = DevolucionesRepo(db)
-        self.asignaciones_repo = AsignacionesRepo(db)
+        # ───────────────── Services BASE ─────────────────
+        # Productos (autocomplete, etc.)
+        self.productos_service = get_productos_service()
 
-        # ───────────────── Services ─────────────────
-        self.productos_service = ProductosService(self.productos_repo)
+        # Repos base (no dependen de motivo)
+        self.personal_repo = get_personal_repo()
+        self.vendedores_repo = get_vendedores_repo()
+        self.asignaciones_repo = get_asignaciones_repo()
+
+        # Services base
         self.personal_service = PersonalService(self.personal_repo)
         self.vendedores_service = VendedoresService(self.vendedores_repo)
 
         self.asignaciones_service = AsignacionesService(
             asignaciones_repo=self.asignaciones_repo,
-            personal_repo=self.personal_repo
-        )
-
-        self.devoluciones_service = DevolucionesService(
-            devoluciones_repo=self.devoluciones_repo,
-            productos_repo=self.productos_repo,
             personal_repo=self.personal_repo,
-            vendedores_repo=self.vendedores_repo,
         )
 
-        # 🔹 Analytics de devoluciones (NUEVO)
+        # 🔹 Analytics (lectura directa DB, independiente de motivo)
         self.devoluciones_analytics_service = DevolucionesAnalyticsService(
             self.db_provider
         )
@@ -87,8 +76,10 @@ class MainWindow(tk.Tk):
             "personal": self.personal_service,
             "vendedores": self.vendedores_service,
             "asignaciones": self.asignaciones_service,
-            "devoluciones": self.devoluciones_service,
-            "devoluciones_analytics": self.devoluciones_analytics_service,  # 👈 CLAVE
+            # ⚠️ NOTA IMPORTANTE:
+            # devoluciones_service NO se registra aquí
+            # se crea dinámicamente por motivo desde events
+            "devoluciones_analytics": self.devoluciones_analytics_service,
         }
 
         # ───────────────── Estado global ─────────────────
@@ -98,7 +89,7 @@ class MainWindow(tk.Tk):
         self.menu = AppMenu(
             parent=self,
             servicios=self.servicios,
-            state=self.state
+            state=self.state,
         )
         self.menu.pack(fill="both", expand=True)
 
@@ -115,10 +106,6 @@ class MainWindow(tk.Tk):
     def _on_data_change(self):
         """
         Callback global cuando cambian datos.
-
-        REGLA:
-        - Refrescar solo pantallas Tk activas
-        - Nada de renders pesados
         """
         if hasattr(self.menu, "historial"):
             self.menu.historial.events.cargar_historial()

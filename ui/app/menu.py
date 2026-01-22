@@ -2,10 +2,8 @@ from tkinter import ttk
 
 # ───────── UI Screens ─────────
 from ui.devoluciones.registro.screen import RegistroScreen
-from ui.devoluciones.historial.screen import HistorialScreen
 from ui.devoluciones.analytics.screen import DevolucionesAnalyticsScreen
 from ui.personal.screen import PersonalScreen
-
 
 
 class AppMenu(ttk.Notebook):
@@ -14,12 +12,12 @@ class AppMenu(ttk.Notebook):
 
     RESPONSABILIDADES:
     - Crear y registrar pantallas (screens)
-    - Inyectar services y estado
+    - Inyectar services base y estado
     - Mantener navegación simple entre módulos
 
-    REGLAS:
-    - NO conoce reportes
-    - NO dispara lógica pesada
+    NOTA CLAVE:
+    - NO crea ni usa DevolucionesService global
+    - El registro de devoluciones resuelve el service por motivo
     """
 
     def __init__(self, parent, *, servicios, state):
@@ -37,19 +35,10 @@ class AppMenu(ttk.Notebook):
         # ───── Registro de devoluciones ─────
         self.registro = RegistroScreen(
             parent=self,
-            devoluciones_service=self.servicios["devoluciones"],
             productos_service=self.servicios["productos"],
             on_saved=self.state.notify_data_change
         )
         self.add(self.registro, text="Registro")
-
-        # ───── Historial de devoluciones ─────
-        self.historial = HistorialScreen(
-            parent=self,
-            devoluciones_service=self.servicios["devoluciones"],
-            on_change=self.state.notify_data_change
-        )
-        #self.add(self.historial, text="Historial")
 
         # ───── Analytics de devoluciones ─────
         self.analytics = DevolucionesAnalyticsScreen(
@@ -71,14 +60,9 @@ class AppMenu(ttk.Notebook):
         """
         Inicialización inicial de la UI.
         Se llama UNA sola vez desde MainWindow.
-
-        REGLAS:
-        - Construir solo pantallas necesarias
-        - Nada de lógica pesada
         """
 
         self.registro.build()
         self.personal.build()
 
-        # Historial y Analytics manejan su propio ciclo
-        # (eventos internos / botón actualizar)
+        # Analytics maneja su propio ciclo (botón / eventos internos)
