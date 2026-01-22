@@ -43,7 +43,6 @@ class RegistroForm(ttk.LabelFrame):
 
         self._layout()
 
-    # ─────────────────────────
     def _layout(self):
         campos = [
             ("Fecha", self.fecha, 0, 0),
@@ -59,7 +58,6 @@ class RegistroForm(ttk.LabelFrame):
             ttk.Label(self, text=texto).grid(row=fila, column=col, sticky="w")
             widget.grid(row=fila + 1, column=col, padx=8, pady=6, sticky="ew")
 
-    # ─────────────────────────
     def get_data(self) -> dict:
         otro = self.motivo_otro.get().strip()
         return {
@@ -71,7 +69,6 @@ class RegistroForm(ttk.LabelFrame):
             "motivo": otro.lower() if otro else self.motivo.get().lower(),
         }
 
-    # ─────────────────────────
     def clear(self):
         for campo in (self.folio, self.cliente, self.direccion, self.motivo_otro):
             campo.delete(0, "end")
@@ -85,8 +82,7 @@ class RegistroForm(ttk.LabelFrame):
 # ─────────────────────────────────────────────
 class ArticuloForm(ttk.LabelFrame):
     """
-    Formulario para agregar artículos.
-    El usuario escribe código o nombre.
+    Formulario para agregar artículos con panel lateral de sugerencias.
     """
 
     def __init__(self, parent):
@@ -100,61 +96,74 @@ class ArticuloForm(ttk.LabelFrame):
         self.pasillo_var = StringVar()
         self.cantidad_var = StringVar(value="1")
 
-        # ───── Widgets ─────
-        self.buscar = ttk.Entry(self, textvariable=self.buscar_var, width=45)
+        # Layout principal (2 columnas)
+        self.columnconfigure(0, weight=3)
+        self.columnconfigure(1, weight=4)
 
-        self.codigo = ttk.Entry(self, textvariable=self.codigo_var, state="readonly")
-        self.nombre = ttk.Entry(self, textvariable=self.nombre_var, state="readonly")
-        self.precio = ttk.Entry(self, textvariable=self.precio_var, state="readonly")
+        # ─────────────────────────
+        # COLUMNA IZQUIERDA (FORMULARIO)
+        # ─────────────────────────
+        left = ttk.Frame(self)
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
+
+        ttk.Label(left, text="Buscar (código o nombre)").grid(row=0, column=0, sticky="w")
+        self.buscar = ttk.Entry(left, textvariable=self.buscar_var, width=45)
+        self.buscar.grid(row=1, column=0, padx=6, pady=6, sticky="ew")
+
+        headers = ["Código", "Nombre", "Precio", "Pasillo", "Cant"]
+        for i, h in enumerate(headers):
+            ttk.Label(left, text=h).grid(row=2, column=i, sticky="w")
+
+        self.codigo = ttk.Entry(left, textvariable=self.codigo_var, state="readonly", width=18)
+        self.nombre = ttk.Entry(left, textvariable=self.nombre_var, state="readonly", width=40)
+        self.precio = ttk.Entry(left, textvariable=self.precio_var, state="readonly", width=10)
 
         self.pasillo = ttk.Combobox(
-            self,
+            left,
             textvariable=self.pasillo_var,
             values=PASILLOS,
             width=6,
             state="disabled"
         )
 
-        self.cantidad = ttk.Entry(self, textvariable=self.cantidad_var, width=6)
+        self.cantidad = ttk.Entry(left, textvariable=self.cantidad_var, width=6)
 
-        # ───── Listbox autocomplete ─────
-        self._listbox = tk.Listbox(self, height=6)
-        self._listbox.place_forget()
+        self.codigo.grid(row=3, column=0, padx=4, pady=4)
+        self.nombre.grid(row=3, column=1, padx=4, pady=4, sticky="ew")
+        self.precio.grid(row=3, column=2, padx=4, pady=4)
+        self.pasillo.grid(row=3, column=3, padx=4, pady=4)
+        self.cantidad.grid(row=3, column=4, padx=4, pady=4)
 
-        self._layout()
+        # ─────────────────────────
+        # COLUMNA DERECHA (SUGERENCIAS)
+        # ─────────────────────────
+        right = ttk.LabelFrame(self, text="Sugerencias", padding=8)
+        right.grid(row=0, column=1, sticky="nsew")
 
-    # ─────────────────────────
-    def _layout(self):
-        fila = 0
-
-        ttk.Label(self, text="Buscar (código o nombre)").grid(row=fila, column=0, sticky="w")
-        self.buscar.grid(
-            row=fila + 1, column=0, columnspan=3,
-            padx=8, pady=6, sticky="ew"
+        self._listbox = tk.Listbox(
+            right,
+            height=14,               # más alto ahora que no hay detalle abajo
+            activestyle="dotbox",
+            exportselection=False
         )
 
-        fila += 2
+        scroll = ttk.Scrollbar(
+            right,
+            orient="vertical",
+            command=self._listbox.yview
+        )
+        self._listbox.config(yscrollcommand=scroll.set)
 
-        headers = ["Código", "Nombre", "Precio", "Pasillo", "Cant"]
-        for i, h in enumerate(headers):
-            ttk.Label(self, text=h).grid(row=fila, column=i, sticky="w")
+        self._listbox.grid(row=0, column=0, sticky="nsew")
+        scroll.grid(row=0, column=1, sticky="ns")
 
-        fila += 1
+        right.rowconfigure(0, weight=1)
+        right.columnconfigure(0, weight=1)
 
-        self.codigo.grid(row=fila, column=0, padx=6, pady=4)
-        self.nombre.grid(row=fila, column=1, padx=6, pady=4, sticky="ew")
-        self.precio.grid(row=fila, column=2, padx=6, pady=4)
-        self.pasillo.grid(row=fila, column=3, padx=6, pady=4)
-        self.cantidad.grid(row=fila, column=4, padx=6, pady=4)
-
-    # ─────────────────────────────────────────
+    # ─────────────────────────
     # AUTOCOMPLETADO (USADO POR EVENTS)
-    # ─────────────────────────────────────────
+    # ─────────────────────────
     def mostrar_sugerencias(self, productos: list):
-        if not productos:
-            self.ocultar_sugerencias()
-            return
-
         self._productos_cache = productos
         self._listbox.delete(0, tk.END)
 
@@ -164,16 +173,8 @@ class ArticuloForm(ttk.LabelFrame):
                 f"{p['clave']} — {p['nombre']}"
             )
 
-        self.update_idletasks()
-        x = self.buscar.winfo_x()
-        y = self.buscar.winfo_y() + self.buscar.winfo_height()
-        w = self.buscar.winfo_width()
-
-        self._listbox.place(x=x, y=y, width=w)
-        self._listbox.lift()
-
     def ocultar_sugerencias(self):
-        self._listbox.place_forget()
+        self._listbox.delete(0, tk.END)
 
     # ─────────────────────────
     # API PARA EVENTS
@@ -215,3 +216,4 @@ class ArticuloForm(ttk.LabelFrame):
         self.pasillo_var.set("")
         self.cantidad_var.set("1")
         self.pasillo.config(state="disabled")
+        self.ocultar_sugerencias()
