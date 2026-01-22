@@ -3,10 +3,13 @@ from db.mongo.collections import (
     DEVOLUCIONES_VENTAS,
 )
 
+MOTIVOS_DEVOLUCION = (
+    "faltante",
+    "cambio de articulo",
+    "caducidad",
+    "mal estado",
+)
+
 def resolver_coleccion_devoluciones(motivo: str) -> str:
     motivo = (motivo or "").lower()
-
-    if motivo in ("captura", "precio", "cliente", "otro motivo"):
-        return DEVOLUCIONES_VENTAS
-
-    return DEVOLUCIONES
+    return DEVOLUCIONES if motivo in MOTIVOS_DEVOLUCION else DEVOLUCIONES_VENTAS
