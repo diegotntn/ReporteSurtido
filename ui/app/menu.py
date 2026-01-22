@@ -39,14 +39,7 @@ class AppMenu(ttk.Notebook):
             on_saved=self.state.notify_data_change
         )
         self.add(self.registro, text="Registro")
-
-        # ───── Analytics de devoluciones ─────
-        self.analytics = DevolucionesAnalyticsScreen(
-            parent=self,
-            analytics_service=self.servicios["devoluciones_analytics"]
-        )
-        self.add(self.analytics, text="Analytics")
-
+        
         # ───── Personal ─────
         self.personal = PersonalScreen(
             parent=self,
@@ -54,6 +47,13 @@ class AppMenu(ttk.Notebook):
             asignaciones_service=self.servicios["asignaciones"]
         )
         self.add(self.personal, text="Personal")
+
+        # ───── Analytics de devoluciones ─────
+        self.analytics = DevolucionesAnalyticsScreen(
+            parent=self,
+            analytics_service=self.servicios["devoluciones_analytics"]
+        )
+        self.add(self.analytics, text="Analytics")
 
     # ─────────────────────────────
     def inicializar(self):
