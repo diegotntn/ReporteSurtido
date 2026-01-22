@@ -6,8 +6,10 @@ class PersonalEvents:
     """
     Callbacks de PERSONAL y ASIGNACIONES.
 
-    - Personal → PersonalService
-    - Asignaciones → AsignacionesService
+    Responsabilidades:
+    - Alta / selección / eliminación de personal
+    - Alta / edición de asignaciones
+    - Sin lógica de negocio (eso vive en services)
     """
 
     def __init__(self, personal_service, asignaciones_service):
@@ -17,20 +19,23 @@ class PersonalEvents:
         self.persona_id_sel = None
         self.asignacion_id = None
 
-    # ───────── BIND ─────────
+    # ─────────────────────────
+    # BIND
+    # ─────────────────────────
     def bind(self, form, tables):
         self.form = form
         self.tables = tables
 
-        # Botones persona
+        # Botones PERSONA
         self.form.btn_add.config(command=self._agregar_persona)
         self.form.btn_clear.config(command=self._limpiar_form_persona)
+        self.form.btn_delete.config(command=self._eliminar_persona)
 
-        # Botones asignación
+        # Botones ASIGNACIÓN
         self.form.btn_save_asig.config(command=self._guardar_asignacion)
         self.form.btn_cancel_asig.config(command=self._cancelar_edicion)
 
-        # Selecciones tablas
+        # Selecciones TABLAS
         self.tables.tbl_personal.bind(
             "<<TreeviewSelect>>", self._on_select_persona
         )
@@ -38,13 +43,16 @@ class PersonalEvents:
             "<<TreeviewSelect>>", self._on_select_asignacion
         )
 
-    # ───────── REFRESH GENERAL ─────────
+    # ─────────────────────────
+    # REFRESH GENERAL
+    # ─────────────────────────
     def refresh_all(self):
         self._refresh_personal()
         self._refresh_asignaciones()
+        self._limpiar_form_persona()
 
     # ─────────────────────────
-    # PERSONAS
+    # PERSONAL
     # ─────────────────────────
     def _refresh_personal(self):
         self.tables.tbl_personal.delete(
@@ -67,6 +75,10 @@ class PersonalEvents:
     def _agregar_persona(self):
         nombre = self.form.var_nombre.get().strip()
         if not nombre:
+            messagebox.showwarning(
+                "Dato requerido",
+                "Ingresa el nombre del personal."
+            )
             return
 
         try:
@@ -75,12 +87,8 @@ class PersonalEvents:
             messagebox.showerror("Error", str(e))
             return
 
-        self.form.var_nombre.set("")
+        self._limpiar_form_persona()
         self._refresh_personal()
-
-    def _limpiar_form_persona(self):
-        self.persona_id_sel = None
-        self.form.var_nombre.set("")
 
     def _on_select_persona(self, _):
         sel = self.tables.tbl_personal.selection()
@@ -88,8 +96,46 @@ class PersonalEvents:
             return
 
         pid, nombre = self.tables.tbl_personal.item(sel[0], "values")
+
         self.persona_id_sel = pid
         self.form.var_nombre.set(nombre)
+        self.form.btn_delete.state(["!disabled"])
+
+    def _limpiar_form_persona(self):
+        self.persona_id_sel = None
+        self.form.var_nombre.set("")
+        self.form.btn_delete.state(["disabled"])
+
+    def _eliminar_persona(self):
+        if not self.persona_id_sel:
+            return
+
+        # 🚫 Validación: asignaciones activas
+        if self.asignaciones_service.tiene_asignaciones(self.persona_id_sel):
+            messagebox.showerror(
+                "No permitido",
+                "Este personal tiene asignaciones activas.\n"
+                "Cancélalas antes de eliminar."
+            )
+            return
+
+        confirmar = messagebox.askyesno(
+            "Confirmar eliminación",
+            "¿Eliminar este registro de personal?\n"
+            "Esta acción NO se puede deshacer."
+        )
+
+        if not confirmar:
+            return
+
+        try:
+            self.personal_service.eliminar(self.persona_id_sel)
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+            return
+
+        self._limpiar_form_persona()
+        self.refresh_all()
 
     # ─────────────────────────
     # ASIGNACIONES
@@ -119,7 +165,7 @@ class PersonalEvents:
         if not pasillo or not persona:
             messagebox.showwarning(
                 "Datos incompletos",
-                "Selecciona pasillo y persona"
+                "Selecciona pasillo y persona."
             )
             return
 

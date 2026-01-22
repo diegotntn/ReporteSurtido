@@ -41,6 +41,15 @@ class PersonalForm(ttk.Frame):
         self.btn_clear = ttk.Button(f, text="Limpiar")
         self.btn_clear.grid(row=1, column=2)
 
+        # 🔴 BOTÓN ELIMINAR PERSONAL
+        self.btn_delete = ttk.Button(
+            f,
+            text="Eliminar personal"
+        )
+        self.btn_delete.grid(row=1, column=3, padx=(8, 0))
+        self.btn_delete.state(["disabled"])
+
+
     def _build_asignacion(self):
         f = ttk.LabelFrame(self, text="Asignación a pasillo", padding=10)
         f.pack(fill="x", pady=(10, 0))
