@@ -8,8 +8,8 @@ class PersonalEvents:
 
     Responsabilidades:
     - Alta / selección / eliminación de personal
-    - Alta / edición de asignaciones
-    - Sin lógica de negocio (eso vive en services)
+    - Alta / edición / eliminación de asignaciones
+    - Orquestar UI → Services
     """
 
     def __init__(self, personal_service, asignaciones_service):
@@ -26,16 +26,17 @@ class PersonalEvents:
         self.form = form
         self.tables = tables
 
-        # Botones PERSONA
+        # ── Botones PERSONAL
         self.form.btn_add.config(command=self._agregar_persona)
         self.form.btn_clear.config(command=self._limpiar_form_persona)
         self.form.btn_delete.config(command=self._eliminar_persona)
 
-        # Botones ASIGNACIÓN
+        # ── Botones ASIGNACIÓN
         self.form.btn_save_asig.config(command=self._guardar_asignacion)
         self.form.btn_cancel_asig.config(command=self._cancelar_edicion)
+        self.form.btn_delete_asig.config(command=self._eliminar_asignacion)
 
-        # Selecciones TABLAS
+        # ── Selecciones TABLAS
         self.tables.tbl_personal.bind(
             "<<TreeviewSelect>>", self._on_select_persona
         )
@@ -50,6 +51,7 @@ class PersonalEvents:
         self._refresh_personal()
         self._refresh_asignaciones()
         self._limpiar_form_persona()
+        self._cancelar_edicion()
 
     # ─────────────────────────
     # PERSONAL
@@ -74,6 +76,7 @@ class PersonalEvents:
 
     def _agregar_persona(self):
         nombre = self.form.var_nombre.get().strip()
+
         if not nombre:
             messagebox.showwarning(
                 "Dato requerido",
@@ -110,7 +113,6 @@ class PersonalEvents:
         if not self.persona_id_sel:
             return
 
-        # 🚫 Validación: asignaciones activas
         if self.asignaciones_service.tiene_asignaciones(self.persona_id_sel):
             messagebox.showerror(
                 "No permitido",
@@ -134,7 +136,6 @@ class PersonalEvents:
             messagebox.showerror("Error", str(e))
             return
 
-        self._limpiar_form_persona()
         self.refresh_all()
 
     # ─────────────────────────
@@ -192,7 +193,6 @@ class PersonalEvents:
             messagebox.showerror("Error", str(e))
             return
 
-        self._cancelar_edicion()
         self.refresh_all()
 
     def _on_select_asignacion(self, _):
@@ -200,10 +200,8 @@ class PersonalEvents:
         if not sel:
             return
 
-        asignacion_id = sel[0]
-        r = self.tables.tbl_asig.item(asignacion_id, "values")
-
-        self.asignacion_id = asignacion_id
+        self.asignacion_id = sel[0]
+        r = self.tables.tbl_asig.item(self.asignacion_id, "values")
 
         self.form.var_pasillo.set(r[0])
         self.form.var_persona.set(r[1])
@@ -214,6 +212,28 @@ class PersonalEvents:
             text="Actualizar asignación"
         )
         self.form.btn_cancel_asig.state(["!disabled"])
+        self.form.btn_delete_asig.state(["!disabled"])
+
+    def _eliminar_asignacion(self):
+        if not self.asignacion_id:
+            return
+
+        confirmar = messagebox.askyesno(
+            "Confirmar eliminación",
+            "¿Eliminar esta asignación?\n"
+            "Esta acción NO se puede deshacer."
+        )
+
+        if not confirmar:
+            return
+
+        try:
+            self.asignaciones_service.eliminar(self.asignacion_id)
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+            return
+
+        self.refresh_all()
 
     def _cancelar_edicion(self):
         self.asignacion_id = None
@@ -227,3 +247,4 @@ class PersonalEvents:
             text="Guardar asignación"
         )
         self.form.btn_cancel_asig.state(["disabled"])
+        self.form.btn_delete_asig.state(["disabled"])

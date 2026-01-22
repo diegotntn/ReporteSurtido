@@ -9,7 +9,7 @@ class AsignacionesService:
     Responsabilidades:
     - Resolver persona (nombre → id)
     - Validar fechas
-    - Crear / actualizar asignaciones
+    - Crear / actualizar / eliminar asignaciones
     - Proveer listados enriquecidos para UI
     - Informar si una persona tiene asignaciones
     """
@@ -54,6 +54,15 @@ class AsignacionesService:
             fecha_hasta=hasta
         )
 
+    def eliminar(self, asignacion_id: str):
+        """
+        Elimina una asignación por ID.
+        """
+        if not asignacion_id:
+            raise ValueError("Asignación no especificada")
+
+        self.asignaciones_repo.eliminar(asignacion_id)
+
     # ─────────────────────────
     # VALIDACIONES
     # ─────────────────────────
@@ -67,7 +76,9 @@ class AsignacionesService:
         if not persona_nombre:
             raise ValueError("Persona no especificada")
 
-        personal = self.personal_repo.listar_personal(solo_activos=False)
+        personal = self.personal_repo.listar_personal(
+            solo_activos=False
+        )
 
         if personal.empty:
             raise ValueError("No hay personal registrado")

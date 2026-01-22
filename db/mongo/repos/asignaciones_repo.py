@@ -1,5 +1,6 @@
 import pandas as pd
 import uuid
+from bson import ObjectId
 
 
 class AsignacionesRepo:
@@ -74,4 +75,12 @@ class AsignacionesRepo:
     # Eliminar (si algún día lo necesitas)
     # ─────────────────────────
     def eliminar(self, asignacion_id: str):
-        self.col.delete_one({"_id": asignacion_id})
+
+        result = self.col.delete_one({
+            "_id": ObjectId(asignacion_id)
+        })
+
+        if result.deleted_count == 0:
+            raise RuntimeError(
+                f"No se eliminó la asignación {asignacion_id}"
+            )
