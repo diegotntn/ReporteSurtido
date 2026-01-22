@@ -5,10 +5,6 @@ from tkcalendar import DateEntry
 from utils.constants import MOTIVOS
 
 
-# ─────────────────────────────────────────────
-# CONSTANTES
-# ─────────────────────────────────────────────
-
 ZONAS = [
     "Z11","Z12","Z13","Z14","Z15","Z17","Z18",
     "Z19","Z20","Z21","Z22","Z23","Z27","Z28"
@@ -18,15 +14,12 @@ PASILLOS = ["P1", "P2", "P3", "P4"]
 
 
 # ─────────────────────────────────────────────
-# FORMULARIO: DATOS GENERALES DE LA DEVOLUCIÓN
+# FORMULARIO: DATOS GENERALES
 # ─────────────────────────────────────────────
 class RegistroForm(ttk.LabelFrame):
-    """
-    Datos generales de la devolución.
-    """
 
     def __init__(self, parent):
-        super().__init__(parent, text="Datos de la devolución", padding=10)
+        super().__init__(parent, text="Datos de la devolución", padding=(8, 6))
 
         self.fecha = DateEntry(self, date_pattern="yyyy-mm-dd")
         self.folio = ttk.Entry(self)
@@ -56,7 +49,13 @@ class RegistroForm(ttk.LabelFrame):
 
         for texto, widget, fila, col in campos:
             ttk.Label(self, text=texto).grid(row=fila, column=col, sticky="w")
-            widget.grid(row=fila + 1, column=col, padx=8, pady=6, sticky="ew")
+            widget.grid(
+                row=fila + 1,
+                column=col,
+                padx=6,
+                pady=3,
+                sticky="ew"
+            )
 
     def get_data(self) -> dict:
         otro = self.motivo_otro.get().strip()
@@ -72,23 +71,18 @@ class RegistroForm(ttk.LabelFrame):
     def clear(self):
         for campo in (self.folio, self.cliente, self.direccion, self.motivo_otro):
             campo.delete(0, "end")
-
         self.motivo.current(0)
         self.zona.current(0)
 
 
 # ─────────────────────────────────────────────
-# FORMULARIO: ARTÍCULO (AUTOCOMPLETADO)
+# FORMULARIO: ARTÍCULO
 # ─────────────────────────────────────────────
 class ArticuloForm(ttk.LabelFrame):
-    """
-    Formulario para agregar artículos con panel lateral de sugerencias.
-    """
 
     def __init__(self, parent):
-        super().__init__(parent, text="Agregar artículo", padding=10)
+        super().__init__(parent, text="Agregar artículo", padding=(8, 6, 6, 6))
 
-        # ───── Variables ─────
         self.buscar_var = StringVar()
         self.codigo_var = StringVar()
         self.nombre_var = StringVar()
@@ -96,19 +90,16 @@ class ArticuloForm(ttk.LabelFrame):
         self.pasillo_var = StringVar()
         self.cantidad_var = StringVar(value="1")
 
-        # Layout principal (2 columnas)
         self.columnconfigure(0, weight=3)
         self.columnconfigure(1, weight=4)
 
-        # ─────────────────────────
-        # COLUMNA IZQUIERDA (FORMULARIO)
-        # ─────────────────────────
+        # ───────── Izquierda ─────────
         left = ttk.Frame(self)
-        left.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
 
         ttk.Label(left, text="Buscar (código o nombre)").grid(row=0, column=0, sticky="w")
         self.buscar = ttk.Entry(left, textvariable=self.buscar_var, width=45)
-        self.buscar.grid(row=1, column=0, padx=6, pady=6, sticky="ew")
+        self.buscar.grid(row=1, column=0, padx=4, pady=3, sticky="ew")
 
         headers = ["Código", "Nombre", "Precio", "Pasillo", "Cant"]
         for i, h in enumerate(headers):
@@ -117,41 +108,27 @@ class ArticuloForm(ttk.LabelFrame):
         self.codigo = ttk.Entry(left, textvariable=self.codigo_var, state="readonly", width=18)
         self.nombre = ttk.Entry(left, textvariable=self.nombre_var, state="readonly", width=40)
         self.precio = ttk.Entry(left, textvariable=self.precio_var, state="readonly", width=10)
-
-        self.pasillo = ttk.Combobox(
-            left,
-            textvariable=self.pasillo_var,
-            values=PASILLOS,
-            width=6,
-            state="disabled"
-        )
-
+        self.pasillo = ttk.Combobox(left, textvariable=self.pasillo_var, values=PASILLOS, width=6, state="disabled")
         self.cantidad = ttk.Entry(left, textvariable=self.cantidad_var, width=6)
 
-        self.codigo.grid(row=3, column=0, padx=4, pady=4)
-        self.nombre.grid(row=3, column=1, padx=4, pady=4, sticky="ew")
-        self.precio.grid(row=3, column=2, padx=4, pady=4)
-        self.pasillo.grid(row=3, column=3, padx=4, pady=4)
-        self.cantidad.grid(row=3, column=4, padx=4, pady=4)
+        self.codigo.grid(row=3, column=0, padx=3, pady=2)
+        self.nombre.grid(row=3, column=1, padx=3, pady=2, sticky="ew")
+        self.precio.grid(row=3, column=2, padx=3, pady=2)
+        self.pasillo.grid(row=3, column=3, padx=3, pady=2)
+        self.cantidad.grid(row=3, column=4, padx=3, pady=2)
 
-        # ─────────────────────────
-        # COLUMNA DERECHA (SUGERENCIAS)
-        # ─────────────────────────
-        right = ttk.LabelFrame(self, text="Sugerencias", padding=8)
+        # ───────── Derecha ─────────
+        right = ttk.LabelFrame(self, text="Sugerencias", padding=4)
         right.grid(row=0, column=1, sticky="nsew")
 
         self._listbox = tk.Listbox(
             right,
-            height=14,               # más alto ahora que no hay detalle abajo
+            height=9,   # 👈 aquí se recupera pantalla
             activestyle="dotbox",
             exportselection=False
         )
 
-        scroll = ttk.Scrollbar(
-            right,
-            orient="vertical",
-            command=self._listbox.yview
-        )
+        scroll = ttk.Scrollbar(right, orient="vertical", command=self._listbox.yview)
         self._listbox.config(yscrollcommand=scroll.set)
 
         self._listbox.grid(row=0, column=0, sticky="nsew")
@@ -160,25 +137,16 @@ class ArticuloForm(ttk.LabelFrame):
         right.rowconfigure(0, weight=1)
         right.columnconfigure(0, weight=1)
 
-    # ─────────────────────────
-    # AUTOCOMPLETADO (USADO POR EVENTS)
-    # ─────────────────────────
+    # ───────── API ─────────
     def mostrar_sugerencias(self, productos: list):
         self._productos_cache = productos
         self._listbox.delete(0, tk.END)
-
         for p in productos:
-            self._listbox.insert(
-                tk.END,
-                f"{p['clave']} — {p['nombre']}"
-            )
+            self._listbox.insert(tk.END, f"{p['clave']} — {p['nombre']}")
 
     def ocultar_sugerencias(self):
         self._listbox.delete(0, tk.END)
 
-    # ─────────────────────────
-    # API PARA EVENTS
-    # ─────────────────────────
     def set_producto(self, producto: dict, pasillo: str | None):
         self.codigo_var.set(producto.get("clave", ""))
         self.nombre_var.set(producto.get("nombre", ""))
@@ -192,11 +160,7 @@ class ArticuloForm(ttk.LabelFrame):
             self.pasillo.config(state="readonly")
 
     def get_data(self) -> dict:
-        try:
-            cantidad = int(self.cantidad_var.get())
-        except ValueError:
-            raise ValueError("Cantidad inválida")
-
+        cantidad = int(self.cantidad_var.get())
         if cantidad <= 0:
             raise ValueError("La cantidad debe ser mayor a cero")
 
