@@ -8,7 +8,7 @@ class ArticulosTable(ttk.LabelFrame):
     """
 
     def __init__(self, parent):
-        super().__init__(parent, text="Artículos devueltos", padding=10)
+        super().__init__(parent, text="Artículos devueltos", padding=(8, 6))
 
         self._items = []
 
@@ -21,8 +21,14 @@ class ArticulosTable(ttk.LabelFrame):
             "total",
         )
 
+        # ─────────────────────────
+        # Contenedor interno
+        # ─────────────────────────
+        container = ttk.Frame(self)
+        container.pack(fill="both", expand=True)
+
         self.tree = ttk.Treeview(
-            self,
+            container,
             columns=columnas,
             show="headings",
             height=8
@@ -41,7 +47,22 @@ class ArticulosTable(ttk.LabelFrame):
             self.tree.heading(col, text=txt)
             self.tree.column(col, anchor="center")
 
-        self.tree.pack(fill="both", expand=True)
+        # ─────────────────────────
+        # Scroll vertical
+        # ─────────────────────────
+        scroll = ttk.Scrollbar(
+            container,
+            orient="vertical",
+            command=self.tree.yview
+        )
+        self.tree.configure(yscrollcommand=scroll.set)
+
+        # Layout
+        self.tree.grid(row=0, column=0, sticky="nsew")
+        scroll.grid(row=0, column=1, sticky="ns")
+
+        container.rowconfigure(0, weight=1)
+        container.columnconfigure(0, weight=1)
 
     # ─────────────────────────────
     # API USADA POR EVENTS
@@ -99,6 +120,9 @@ class ArticulosTable(ttk.LabelFrame):
             self.tree.delete(row)
 
     def remove_selected(self):
+        """
+        Elimina el artículo seleccionado.
+        """
         seleccion = self.tree.selection()
         if not seleccion:
             return False
